@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1f2937"/>
+      <stop offset="1" stop-color="#0f1115"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="240" rx="28" fill="url(#bg)"/>
+
+  <g transform="translate(48,40)">
+    <rect width="160" height="160" rx="30" fill="#171a21" stroke="#2a2f3a" stroke-width="1"/>
+    <circle cx="80" cy="55" r="17" fill="#f4a83c"/>
+    <path d="M15 132 L62 65 L80 90 L98 62 L145 132 Z" fill="#e8944a"/>
+    <path d="M80 90 L98 62 L145 132 L100 132 Z" fill="#f4a83c"/>
+    <path d="M62 65 L75 84 L69 90 L54 76 Z" fill="#f7f4ee"/>
+    <path d="M98 62 L108 76 L98 84 L90 74 Z" fill="#f7f4ee"/>
+    <rect x="15" y="126" width="130" height="6" fill="#0f1115" opacity="0.35"/>
+  </g>
+
+  <text x="248" y="128" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#eef0f3">Vantage</text>
+  <text x="250" y="168" font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="500" fill="#f4a83c">See further. Lead better.</text>
+</svg>

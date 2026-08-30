@@ -1,0 +1,14 @@
+{
+  "name": "Vantage — Daily Leadership Sessions",
+  "short_name": "Vantage",
+  "description": "30-minute daily leadership tutoring sessions",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1f2937",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "192x192 512x512", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

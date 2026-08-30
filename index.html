@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Vantage — Daily Leadership Sessions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f2937">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1f232c; --line:#2a2f3a;
+    --text:#eef0f3; --muted:#9aa3b2; --accent:#f4a83c; --accent2:#e8944a;
+    --good:#4caf7d; --warn:#e0616b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  body{padding-bottom:env(safe-area-inset-bottom);}
+  .app{max-width:520px;margin:0 auto;padding:20px 16px 40px;}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
+  .brand{display:flex;align-items:center;gap:11px;}
+  .brand-icon{width:40px;height:40px;border-radius:11px;flex:0 0 40px;display:block;}
+  .brand-text{display:flex;flex-direction:column;}
+  .tagline{font-size:10.5px;color:var(--accent);font-weight:600;margin-top:1px;letter-spacing:.1px;}
+  .streak{display:flex;align-items:center;gap:6px;background:var(--card2);
+    border:1px solid var(--line);padding:6px 10px;border-radius:20px;font-size:13px;color:var(--accent);}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;}
+  .module-badge{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--accent);background:rgba(244,168,60,.12);border:1px solid rgba(244,168,60,.3);
+    padding:3px 9px;border-radius:20px;margin-bottom:10px;}
+  .day-label{font-size:12px;color:var(--muted);margin-bottom:2px;}
+  .topic-title{font-size:21px;font-weight:700;line-height:1.3;margin:2px 0 10px;}
+  .situation{font-size:14.5px;color:#c7cbd4;line-height:1.5;margin-bottom:4px;}
+  .situation b{color:var(--text);}
+  .btn{display:block;width:100%;text-align:center;padding:14px;border-radius:12px;border:none;
+    font-size:16px;font-weight:600;cursor:pointer;margin-top:12px;}
+  .btn-primary{background:var(--accent);color:#1a1200;}
+  .btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--line);}
+  .btn:active{transform:scale(.98);}
+  .done-check{text-align:center;color:var(--good);font-size:14px;font-weight:600;margin-top:10px;}
+  .progress-wrap{margin-top:16px;}
+  .progress-bar-bg{height:8px;background:var(--card2);border-radius:8px;overflow:hidden;}
+  .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:8px;transition:width .3s;}
+  .progress-text{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;}
+  .review-card{border-left:3px solid var(--accent);}
+  .review-card .rlabel{font-size:12px;color:var(--accent);font-weight:600;margin-bottom:6px;}
+  .hidden{display:none !important;}
+  .phase-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .phase-name{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+  .timer{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .timer.low{color:var(--warn);}
+  .phase-body{font-size:15px;line-height:1.55;color:#dfe2e8;margin:12px 0;white-space:pre-line;}
+  textarea{width:100%;min-height:80px;background:var(--card2);border:1px solid var(--line);
+    border-radius:10px;color:var(--text);padding:12px;font-size:14.5px;font-family:inherit;resize:vertical;}
+  .row{display:flex;gap:10px;}
+  .row .btn{margin-top:12px;}
+  .steps{display:flex;gap:5px;margin-bottom:14px;}
+  .step{flex:1;height:4px;border-radius:3px;background:var(--card2);}
+  .step.active{background:var(--accent);}
+  .step.past{background:var(--good);}
+  .list-topics{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .list-topics.open{max-height:1400px;margin-top:10px;}
+  .topic-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .topic-row:last-child{border-bottom:none;}
+  .tick{width:18px;height:18px;border-radius:50%;flex:0 0 18px;border:1.5px solid var(--line);}
+  .tick.on{background:var(--good);border-color:var(--good);}
+  .toggle-list{text-align:center;font-size:13px;color:var(--muted);margin-top:12px;cursor:pointer;}
+  .takeaways{font-size:13px;color:var(--muted);}
+  .takeaways .tk{padding:8px 0;border-bottom:1px solid var(--line);color:#c7cbd4;}
+  .nudge-banner{background:rgba(224,97,107,.12);border:1px solid rgba(224,97,107,.35);
+    color:#f2a7ab;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:22px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+/* ---------------- DATA: 46 topics, 7 modules ---------------- */
+const TOPICS = [
+{m:"Communication Foundations",t:"Leadership Writing: Executive Summary Emails",s:"You need a senior leader to approve a budget, unblock a decision, or back an opportunity \\u2014 if the first few lines are unclear, it turns into a chain of questions.",l:"Write an executive summary that gets senior leaders to understand the issue quickly, see what matters, and respond with the decision or support you need.",tpl:"Subject: [Decision/ask in one line]\n\nHi [Name], we need [decision] by [date] because [risk/impact if delayed].\n\nSituation: [1-2 sentence context].\nRecommendation: [what you want them to approve/do].\nWhy: [top 2 reasons].\nAsk: [specific action + deadline]."},
+{m:"Communication Foundations",t:"Simplifying Complex Messages",s:"Your subject is technically or commercially complex, but the audience doesn't need every detail \\u2014 too much complexity can obscure the decision that matters.",l:"Simplify a complex issue without oversimplifying it, so stakeholders can understand it and act on it.",tpl:"The one-sentence version: [core message in plain language].\nIf you want one more layer: [the 2-3 things that matter], and here's why they matter: [business impact].\nEverything else is detail I can go into if useful."},
+{m:"Communication Foundations",t:"Turning Metrics into Meaning",s:"You have data, dashboards and KPIs, but leaders don't need another data dump \\u2014 they need to know what the numbers mean and what action is required.",l:"Turn metrics into a clear business story that helps leaders understand what matters and decide what to do next.",tpl:"[Metric] is at [number], which means [what's actually happening].\nCompared to [benchmark/last period], this is [better/worse] because [reason].\nWhat this means for the business: [impact].\nWhat I recommend: [action]."},
+{m:"Communication Foundations",t:"Adapting the Message to the Audience",s:"The same recommendation needs to go to your boss, peers, clients, finance and the exec team \\u2014 each cares about something different.",l:"Change the framing, level of detail and emphasis without changing the core message.",tpl:"Core message (same for everyone): [one line].\nFor [Audience A, e.g. Finance]: emphasize [X].\nFor [Audience B, e.g. Engineering]: emphasize [Y].\nFor [Audience C, e.g. Exec team]: emphasize [Z]."},
+{m:"Communication Foundations",t:"Analysing Business Problems Structurally",s:"A business problem looks messy because multiple factors are interacting \\u2014 people, process, customer, cost, technology, market.",l:"Break a complex business problem into the right components so you can identify root causes and make a stronger recommendation.",tpl:"Problem: [one line].\nComponents \u2014 People: [X], Process: [Y], Customer: [Z], Cost: [A], Technology: [B], Market: [C].\nRoot cause (most likely): [pick one].\nRecommendation based on root cause: [action]."},
+{m:"Listening & Reading People",t:"Reading the Room: Reading Between the Lines",s:"A meeting appears to be about one topic, but the real decision, concern or resistance sits underneath \\u2014 and it's often never stated directly.",l:"Recognise reactions, hidden concerns and unspoken priorities so you can adjust your approach and influence the outcome.",tpl:"Surface topic in the meeting: [X].\nWhat I actually noticed (body language, silence, tone): [Y].\nWhat I think is really going on underneath: [Z].\nHow I'll adjust my approach: [action]."},
+{m:"Listening & Reading People",t:"The Listening Lab: Listening Beyond the Words",s:"A colleague or stakeholder is explaining a problem, but the real issue may be frustration, fear, politics, or something they're reluctant to say.",l:"Listen for both what is said and what isn't, so you understand the real need behind the conversation.",tpl:"What they said: [quote/paraphrase].\nWhat I think they meant or felt underneath: [interpretation].\nQuestion I'll ask to check: [open question]."},
+{m:"Listening & Reading People",t:"Asking Powerful Questions as a Leader",s:"A conversation is giving you surface-level answers, or your team brings you problems instead of thinking them through.",l:"Ask questions that uncover assumptions, create thinking, and move people toward better decisions.",tpl:"Situation someone brought me: [X].\nInstead of solving it, I'll ask: [open question 1], then [open question 2].\nWhat I want this to surface: [assumption/blind spot]."},
+{m:"Listening & Reading People",t:"Observing Patterns as a Leader",s:"You keep hitting recurring issues \\u2014 similar conflicts, repeated execution problems \\u2014 and the immediate issue may matter less than the pattern behind it.",l:"Spot patterns across people, business issues and outcomes so you address root causes instead of repeatedly solving symptoms.",tpl:"Recurring issue: [X] has happened [N] times.\nEach time, the common thread is: [pattern].\nRoot cause behind the pattern: [Y].\nWhat I'll change so this stops recurring (a systemic fix, not a one-off patch): [Z]."},
+{m:"Listening & Reading People",t:"Understanding Perceptions and Relationships",s:"You think you're performing well, yet some stakeholders see you as too aggressive, too quiet, or hard to work with.",l:"Understand how key stakeholders perceive you and manage the relationships that shape your effectiveness and career.",tpl:"Stakeholder: [Name].\nHow I think I come across to them: [X].\nEvidence/signal that suggests this: [Y].\nWhat I want them to think of me instead: [Z].\nOne thing I'll do differently: [action]."},
+{m:"Listening & Reading People",t:"Understanding Negative Perceptions",s:"You sense a stakeholder has lost confidence in you or sees you through an old narrative that no longer reflects your current capability.",l:"Identify where negative perceptions come from and understand what needs to change before trying to change the perception.",tpl:"Stakeholder: [Name].\nWhat I believe the negative perception is: [X].\nWhere I think it came from (specific incident/pattern): [Y].\nWhat needs to actually change before I try to change their mind: [Z]."},
+{m:"Stakeholder Management Core",t:"Mapping Stakeholder Power, Priorities and Influence",s:"You're starting a project or facing a high-stakes initiative \\u2014 several people can influence the outcome, but not equally.",l:"Identify the stakeholders who can make or break your success, understand what matters to each, and decide how to engage them.",tpl:"Initiative: [X].\nStakeholder: [Name] \u2014 Power: [High/Med/Low], Interest: [High/Med/Low].\nWhat they care about: [priority].\nHow I'll engage them: [Inform / Consult / Involve / Manage closely]."},
+{m:"Stakeholder Management Core",t:"Researching Stakeholders Strategically",s:"Before an important meeting, you need to understand a person's priorities, pressures, history and likely concerns.",l:"Prepare for a stakeholder strategically so you enter the conversation understanding what matters to them.",tpl:"Upcoming conversation with: [Name/role].\nTheir likely priorities: [X].\nTheir likely pressures right now: [Y].\nHistory I should know: [Z].\nHow I'll open the conversation: [line]."},
+{m:"Stakeholder Management Core",t:"Creating Stakeholder Engagement Plans",s:"A major initiative depends on several stakeholders and communication can't be one-size-fits-all.",l:"Create a practical engagement plan: who to involve, what they need, when to engage, and how to build commitment.",tpl:"Initiative: [X].\nStakeholder: [Name] \u2014 Needs: [what they need to know/decide] \u2014 Engage by: [date] \u2014 Method: [1:1 / email / meeting]."},
+{m:"Stakeholder Management Core",t:"Managing Upward Effectively",s:"Your manager needs visibility and fewer surprises, while you need support, clarity or resources.",l:"Manage your manager proactively and build a relationship based on trust rather than dependency.",tpl:"What my manager needs from me right now: [X].\nWhat I need from them: [Y].\nHow I'll proactively update them (cadence + format): [Z]."},
+{m:"Stakeholder Management Core",t:"Navigating Organisational Politics",s:"A decision is shaped by relationships, competing agendas and informal power \\u2014 not just the org chart.",l:"Read political dynamics, understand competing interests, and choose a response that protects your credibility.",tpl:"Decision at stake: [X].\nWho actually influences it, beyond the org chart: [Y].\nCompeting interests I should be aware of: [Z].\nMy response that protects credibility: [action]."},
+{m:"Stakeholder Management Core",t:"Anticipating Questions from Stakeholders",s:"You're presenting to leaders from different functions, each looking at the issue through a different lens.",l:"Anticipate the questions and concerns different stakeholders are likely to raise so you walk in prepared and credible.",tpl:"Topic I'm presenting: [X].\nFinance will likely ask: [Y].\nOperations will likely ask: [Z].\nMy prepared answer to the toughest one: [A]."},
+{m:"Difficult Dynamics & Conversations",t:"Handling Disagreements Without Damaging Relationships",s:"You disagree with a senior colleague or influential stakeholder \\u2014 the challenge is to challenge the idea without making the person feel challenged.",l:"Disagree, challenge assumptions, or respond to pushback without becoming defensive or damaging the relationship.",tpl:"Their position: [X]. My concern: [Y].\nI'll open with: \"I see it differently, and here's why...\" [Z].\nWhat I want to preserve in the relationship: [A]."},
+{m:"Difficult Dynamics & Conversations",t:"Handling a Tough Manager",s:"Your manager is demanding, unpredictable or dismissive \\u2014 you can't control their behaviour, only your response.",l:"Handle a difficult manager with composure, protect the relationship, and still stand up for what you need.",tpl:"Behaviour I'm dealing with: [X].\nWhat I can't control: [Y]. What I can control: [Z].\nMy response next time this happens: [script line]."},
+{m:"Difficult Dynamics & Conversations",t:"Managing Unrealistic Expectations",s:"A stakeholder wants more scope, a faster timeline, or a commitment your team can't realistically deliver.",l:"Reset unrealistic expectations, negotiate a workable path, and preserve the relationship.",tpl:"They're asking for: [X]. What's realistic: [Y].\nWhat I'll say: \"Here's what we can commit to by [date], here's why [Z], here's what we'd need to do more: [A].\""},
+{m:"Difficult Dynamics & Conversations",t:"Handling Resistance from Stakeholders",s:"A stakeholder is slowing your initiative or refusing to support a decision \\u2014 pushing harder may backfire.",l:"Understand the source of resistance and move a stakeholder toward support or workable alignment.",tpl:"Who's resisting: [Name]. What they're resisting: [X].\nMy guess at the real source of resistance: [Y].\nHow I'll move them toward alignment: [action]."},
+{m:"Difficult Dynamics & Conversations",t:"Handling Mistrust and Lack of Confidence",s:"A stakeholder doesn't fully trust you, your team, or the information being presented.",l:"Diagnose why trust is low and rebuild confidence through consistent communication and follow-through.",tpl:"Stakeholder: [Name]. Signal that trust is low: [X].\nMy guess at why: [Y].\nWhat I'll do consistently over the next [N] weeks to rebuild it: [Z]."},
+{m:"Difficult Dynamics & Conversations",t:"Leading Difficult Conversations",s:"You need to address underperformance, conflict, or a broken commitment \\u2014 avoiding it only makes it harder.",l:"Prepare for and lead a difficult conversation with clarity, courage and empathy.",tpl:"Conversation I'm avoiding: [X], with [Name].\nOpening line: [Y].\nWhat I need to say clearly: [Z].\nHow I'll show empathy while still being direct: [A]."},
+{m:"Difficult Dynamics & Conversations",t:"Conveying Negative News Professionally",s:"You need to tell a senior stakeholder a commitment will slip, or a target will be missed.",l:"Communicate difficult news honestly and clearly while maintaining trust and credibility.",tpl:"The news: [X] will [slip / miss / not happen].\nWhy, short and no excuses: [Y].\nImpact: [Z].\nWhat we're doing about it: [A]."},
+{m:"Difficult Dynamics & Conversations",t:"Reframing Conversations to Create Impact",s:"A discussion has become repetitive or stuck around the wrong issue \\u2014 arguing the same point won't change the outcome.",l:"Reframe a stuck conversation so people see the issue differently and it moves toward a useful decision.",tpl:"Where the conversation is stuck: [X].\nReframe: \"Instead of arguing about [X], what if we looked at it as [Y]?\"\nNew question to move it forward: [Z]."},
+{m:"Difficult Dynamics & Conversations",t:"Reframing Negative Language Positively",s:"A discussion is becoming focused on problems and blame, which makes people defensive and narrows the options.",l:"Shift negative or limiting language toward a constructive conversation without ignoring the real problem.",tpl:"What was said: [X] (blame/negative framing).\nReframe: [Y] (constructive framing, same facts).\nQuestion that moves toward solutions: [Z]."},
+{m:"Presence, Voice & Delivery",t:"The 7-Minute Voice and Presence Challenge",s:"You have a short window with senior leaders and need to make your point quickly.",l:"Deliver a concise, compelling leadership message that gets attention and creates the right impression.",tpl:"My message in one sentence: [X].\nWhy it matters, the business impact: [Y].\nWhat I need from you: [Z].\n(Practice saying this in under 60 seconds, no filler words.)"},
+{m:"Presence, Voice & Delivery",t:"Using Your Voice to Influence Senior Audiences",s:"You have the right content, but pace, tone or emphasis can make you sound less confident than you are.",l:"Use your voice deliberately to project confidence, authority and credibility.",tpl:"Key point: [X].\nWhere I'll slow down and pause for emphasis: [Y].\nWhere I tend to rush or trail off, and will fix: [Z]."},
+{m:"Presence, Voice & Delivery",t:"Commanding Attention as a Leader",s:"You enter a meeting where people are distracted or senior voices dominate the room.",l:"Earn attention and make your point in a way that signals confidence, relevance and leadership presence.",tpl:"Meeting I'm entering: [X].\nOpening line that earns attention: [Y].\nHow I'll hold the floor without dominating: [Z]."},
+{m:"Presence, Voice & Delivery",t:"Thinking on Your Feet While Speaking",s:"A senior leader asks for your view without warning or changes the question midway.",l:"Organise your thoughts quickly and give a clear, confident answer without needing time to prepare.",tpl:"Unexpected question: [X].\nStructure I'll use: \"The short answer is [Y]. The reason is [Z]. The one thing to watch is [A].\""},
+{m:"Presence, Voice & Delivery",t:"Communicating Clearly Under Pressure",s:"A meeting becomes tense or a decision is urgent \\u2014 pressure can make even experienced leaders vague or defensive.",l:"Stay clear, composed and decisive when the stakes are high.",tpl:"High-pressure moment: [X].\nWhat I'll say to buy a beat and stay composed: [Y].\nMy clear, decisive answer: [Z]."},
+{m:"Presence, Voice & Delivery",t:"Handling Unexpected Questions During a Presentation",s:"You're mid-presentation when someone interrupts with a question that takes the discussion in an unexpected direction.",l:"Handle interruptions and unexpected questions without losing composure or the thread of your message.",tpl:"Likely interruption: [X].\nMy bridge back to the main point: \"Good question \u2014 [brief answer]. Coming back to [Y]...\""},
+{m:"Presence, Voice & Delivery",t:"Handling Tough Questions After a Presentation",s:"You've finished presenting and a senior stakeholder challenges the recommendation in front of others.",l:"Stay calm, think clearly, and respond credibly when challenged with a difficult question in public.",tpl:"Toughest question I might get: [X].\nMy calm response: [Y].\nIf I don't know: \"I don't have that number in front of me, I'll follow up by [date].\""},
+{m:"Presence, Voice & Delivery",t:"Improving Delivery Through Peer Feedback",s:"It's hard to hear your own habits while speaking \\u2014 targeted feedback reveals what others actually experience.",l:"Use structured feedback and repeated practice to improve how you communicate in high-stakes situations.",tpl:"Habit I want feedback on: [X].\nWho I'll ask: [Y].\nSpecific question I'll ask them: \"When I [X], what did you notice?\""},
+{m:"Strategic Thinking & Business Acumen",t:"Strategic Business Awareness for Leaders",s:"A senior conversation moves beyond your team's KPIs into customers, competitors and market shifts.",l:"Connect your functional thinking to the wider business and competitive landscape so you contribute like a business leader.",tpl:"My function's KPI: [X].\nHow it connects to the customer: [Y].\nHow it connects to competitors/market: [Z].\nHow I'll bring this up in the next senior conversation: [A]."},
+{m:"Strategic Thinking & Business Acumen",t:"Zooming Out: How Leaders See the Whole Game",s:"You're deep in an operational problem and everyone wants an immediate fix, but leaders need the wider implications.",l:"Step back from the immediate problem, see the wider implications, and make a better leadership decision.",tpl:"Operational problem in front of me: [X].\nWider implications \u2014 customers: [Y], other functions: [Z], cost/risk: [A].\nThe leadership decision, not just the fix: [B]."},
+{m:"Strategic Thinking & Business Acumen",t:"Thinking Beyond the Now",s:"A decision may solve today's problem but create cost, dependency or risk later.",l:"Make decisions that solve today's problem while protecting future options and creating long-term value.",tpl:"Decision on the table: [X].\nWhat it solves today: [Y].\nWhat it might cost later (dependency/risk/missed option): [Z].\nHow I'll protect future options: [A]."},
+{m:"Strategic Thinking & Business Acumen",t:"Data-Driven Decision Making for Leaders",s:"You have numbers pointing one way, but the decision also involves judgement, risk and business priorities.",l:"Use data intelligently while balancing evidence, judgement and context to make decisions people can stand behind.",tpl:"What the data says: [X].\nWhat judgement/context the data doesn't capture: [Y].\nMy recommendation, balancing both: [Z]."},
+{m:"Strategic Thinking & Business Acumen",t:"Proposing Strategic Solutions",s:"You're asked to solve a business problem, but leaders expect more than an operational fix \\u2014 they want options and trade-offs.",l:"Move from identifying a problem to developing strategic options and a recommendation leaders can act on.",tpl:"Problem: [X].\nOption A: [Y] \u2014 trade-off: [Z].\nOption B: [A] \u2014 trade-off: [B].\nMy recommendation: [C], because [D]."},
+{m:"Strategic Thinking & Business Acumen",t:"Presenting Strategic Recommendations",s:"You've developed a recommendation, but the discussion could get lost in analysis or competing agendas.",l:"Present a strategic recommendation around the decision, rationale, trade-offs, risks and expected impact.",tpl:"Decision I'm recommending: [X].\nRationale: [Y].\nTrade-offs/risks: [Z].\nExpected business impact: [A]."},
+{m:"Influence, Reputation & Positioning",t:"Telling Success Stories That Build Credibility",s:"You've delivered results or led an important initiative, but just listing achievements doesn't make the impact memorable.",l:"Tell leadership stories that demonstrate judgement, ownership and impact without sounding like boasting.",tpl:"Situation: [X]. What I did: [Y]. Result: [Z].\nWhat this shows about my judgement/ownership, without saying it outright: [A]."},
+{m:"Influence, Reputation & Positioning",t:"Framing Ideas for Leadership Visibility",s:"You have a good idea, but senior leaders may not automatically see its business significance.",l:"Frame ideas around business value, risk, opportunity and outcomes so leaders recognise the value you bring.",tpl:"The idea: [X].\nBusiness value: [Y]. Risk if we don't act: [Z]. Opportunity: [A]."},
+{m:"Influence, Reputation & Positioning",t:"Managing Negative Perceptions",s:"You know a perception about you is limiting trust or influence \\u2014 ignoring it lets the story get stronger.",l:"Deliberately change a negative stakeholder perception through how you communicate, behave and build evidence over time.",tpl:"Perception I need to shift: [X].\nEvidence I'll build over the next [N] weeks: [Y].\nHow I'll communicate differently starting now: [Z]."},
+{m:"Influence, Reputation & Positioning",t:"Positioning Yourself as a Business Leader",s:"You're ready for broader responsibility, but your reputation may still be tied to your function or execution capability.",l:"Demonstrate broader business thinking so you're seen as ready to lead beyond your current role.",tpl:"My current reputation: [X] (tied to function/execution).\nBroader business thinking I'll demonstrate: [Y].\nWhere I'll show it (meeting/forum): [Z]."},
+{m:"Influence, Reputation & Positioning",t:"Positioning Yourself for Promotion",s:"You're performing well, but the next role requires more than delivery \\u2014 decision-makers need to see leadership capability first.",l:"Build the visibility, relationships and leadership reputation that make decision-makers see you as ready for the next level.",tpl:"Next role I want: [X].\nCapability gap decision-makers might see: [Y].\nVisibility/relationship I'll build to close it: [Z]."},
+{m:"Influence, Reputation & Positioning",t:"Building Industry Visibility and Professional Reputation",s:"You want to be recognised beyond your organisation, but your expertise may not yet be visible to the wider industry.",l:"Build credible industry visibility and a professional reputation that strengthens your long-term career options.",tpl:"Area of expertise: [X].\nWhere I'll show it externally (LinkedIn/talk/writing): [Y].\nFirst piece of visible work: [Z]."},
+
+];
+
+const PHASE_SECONDS = [4*60, 8*60, 12*60, 4*60, 2*60];
+const PHASE_NAMES = ["Retrieval warm-up","Core concept","Applied practice","Compression","Spaced review"];
+
+/* ---------------- STATE (localStorage) ---------------- */
+const STORE_KEY = "vantage_state_v1";
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(!parsed.drafts) parsed.drafts = {};
+      return parsed;
+    }
+  }catch(e){}
+  return { startDate: null, completedDays: {}, takeaways: {}, drafts: {}, currentDay: 0 };
+}
+function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+let state = loadState();
+if(!state.startDate){ state.startDate = todayStr(); saveState(); }
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function daysBetween(a,b){
+  const da = new Date(a+"T00:00:00"), db = new Date(b+"T00:00:00");
+  return Math.round((db-da)/86400000);
+}
+function completedCount(){ return Object.keys(state.completedDays).length; }
+function currentTopicIndex(){
+  // topic index = number of completed sessions so far (capped at TOPICS.length-1)
+  return Math.min(completedCount(), TOPICS.length-1);
+}
+function streak(){
+  let s = 0, d = new Date();
+  while(true){
+    const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if(state.completedDays[key]){ s++; d.setDate(d.getDate()-1); } else break;
+  }
+  return s;
+}
+function doneToday(){ return !!state.completedDays[todayStr()]; }
+
+/* review candidates: topics completed roughly 3, 7, 14 days ago */
+function reviewCandidate(){
+  const entries = Object.entries(state.completedDays); // [dateStr, topicIndex]
+  if(!entries.length) return null;
+  const targets = [3,7,14];
+  for(const t of targets){
+    for(const [dateStr, idx] of entries){
+      if(daysBetween(dateStr, todayStr()) === t) return TOPICS[idx];
+    }
+  }
+  return null;
+}
+
+/* ---------------- NOTIFICATIONS ---------------- */
+function askNotificationPermission(){
+  if("Notification" in window && Notification.permission === "default"){
+    Notification.requestPermission();
+  }
+}
+function maybeNudge(){
+  if(!("Notification" in window)) return;
+  if(Notification.permission !== "granted") return;
+  if(doneToday()) return;
+  if(!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  navigator.serviceWorker.controller.postMessage({
+    type:"SHOW_NUDGE",
+    title:"Today's leadership session is waiting",
+    body:"Day "+(completedCount()+1)+": "+TOPICS[currentTopicIndex()].t+" — 30 min."
+  });
+}
+
+/* ---------------- VIEW: HOME ---------------- */
+function renderHome(){
+  const idx = currentTopicIndex();
+  const topic = TOPICS[idx];
+  const total = TOPICS.length;
+  const done = completedCount();
+  const pct = Math.round((done/total)*100);
+  const rev = reviewCandidate();
+  const finished = done >= total;
+
+  let html = `
+  <header>
+    <div class="brand">
+      <img class="brand-icon" src="icon.svg" alt="Vantage">
+      <div class="brand-text">
+        <h1>Vantage</h1>
+        <div class="tagline">See further. Lead better.</div>
+      </div>
+    </div>
+    <div class="streak">🔥 ${streak()} day streak</div>
+  </header>`;
+
+  if(!doneToday() && done > 0){
+    html += `<div class="nudge-banner">You haven't done today's session yet. 30 minutes, ${topic.t}.</div>`;
+  }
+
+  if(rev && !doneToday()){
+    html += `
+    <div class="card review-card">
+      <div class="rlabel">🔁 QUICK SPACED REVIEW</div>
+      <div class="topic-title" style="font-size:16px;margin-bottom:4px;">${rev.t}</div>
+      <div class="situation">Before today's new topic — can you still recall the core technique from this one? Try to answer from memory first.</div>
+    </div>`;
+  }
+
+  if(finished){
+    html += `
+    <div class="card">
+      <div class="module-badge">🎉 Program Complete</div>
+      <div class="topic-title" style="font-size:19px;">All 46 sessions done</div>
+      <div class="situation">Use buffer days to redo your weakest topics, or revisit your takeaways below.</div>
+    </div>`;
+  } else {
+    html += `
+    <div class="card">
+      <div class="module-badge">${topic.m}</div>
+      <div class="day-label">Day ${done+1} of ${total}</div>
+      <div class="topic-title">${topic.t}</div>
+      <div class="situation"><b>Situation:</b> ${topic.s}</div>
+      <div class="situation" style="margin-top:8px;"><b>You'll learn:</b> ${topic.l}</div>
+      ${doneToday()
+        ? `<div class="done-check">✓ Session completed today. Nice work.</div>`
+        : `<button class="btn btn-primary" onclick="startSession()">Start 30-Min Session</button>`}
+    </div>`;
+  }
+
+  html += `
+    <div class="card">
+      <div class="progress-wrap">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+        <div class="progress-text"><span>${done} / ${total} sessions</span><span>${pct}%</span></div>
+      </div>
+      <div class="toggle-list" onclick="toggleList()">View full topic list ▾</div>
+      <div class="list-topics" id="topicList">
+        ${TOPICS.map((tp,i)=>`<div class="topic-row"><div class="tick ${i<done?'on':''}"></div><div>${tp.t}</div></div>`).join("")}
+      </div>
+    </div>`;
+
+  const tkEntries = Object.entries(state.takeaways);
+  if(tkEntries.length){
+    html += `<div class="card"><div class="module-badge">Your Takeaways</div><div class="takeaways">`;
+    html += tkEntries.slice().reverse().slice(0,8).map(([i,txt])=>`<div class="tk"><b>${TOPICS[i].t}:</b> ${txt}</div>`).join("");
+    html += `</div></div>`;
+  }
+
+  html += `<div class="footer-note">Ping me (Claude) each day and say "run today's session" — I'll walk you through it live and give feedback on your Phase 3 practice.</div>`;
+
+  document.getElementById("app").innerHTML = html;
+  maybeNudge();
+}
+function toggleList(){ document.getElementById("topicList").classList.toggle("open"); }
+
+/* ---------------- VIEW: SESSION ---------------- */
+let session = null; // {phase:0-4, secondsLeft, timerId, topicIdx}
+
+function startSession(){
+  session = { phase:0, secondsLeft: PHASE_SECONDS[0], timerId:null, topicIdx: currentTopicIndex() };
+  askNotificationPermission();
+  renderSession();
+  tick();
+}
+function renderSession(){
+  const topic = TOPICS[session.topicIdx];
+  const rev = reviewCandidate();
+  const stepsHtml = PHASE_NAMES.map((n,i)=>{
+    let cls = i===session.phase ? "active" : (i<session.phase ? "past" : "");
+    return `<div class="step ${cls}"></div>`;
+  }).join("");
+
+  let body = "";
+  if(session.phase===0){
+    body = `Before looking at anything new: what was the topic of your last session, and what's the one technique you're supposed to use from it? Say it out loud or type it below.\n\nThen glance at today's topic:\n\n"${topic.t}"\n\nSituation: ${topic.s}`;
+  } else if(session.phase===1){
+    body = `${topic.t}\n\nSituation: ${topic.s}\n\nWhat you'll learn: ${topic.l}\n\nOpen a chat with Claude now and paste:\n"Today's topic: ${topic.t}. Walk me through the core concept and give me a framework or script."`;
+  } else if(session.phase===2){
+    body = `Fill in the brackets below with a real or realistic scenario from your own work. Then tap "Copy for Claude" and paste it into a chat with me — I'll compare it against the technique and give specific feedback.`;
+  } else if(session.phase===3){
+    body = `Write a one-line takeaway in your own words — the thing you'll actually remember in a meeting three weeks from now.`;
+  } else if(session.phase===4){
+    body = rev
+      ? `Quick spaced review — recall this from memory before you check:\n\n"${rev.t}"\n\nWhat was the core technique?`
+      : `No review topic due yet — you'll get one once you have a few sessions under your belt. Nice work today.`;
+  }
+
+  const showTakeawayBox = session.phase===3;
+  const showTemplateBox = session.phase===2;
+  const draftVal = state.drafts[session.topicIdx] !== undefined ? state.drafts[session.topicIdx] : topic.tpl;
+
+  document.getElementById("app").innerHTML = `
+    <header>
+      <h1>${topic.t}</h1>
+    </header>
+    <div class="card">
+      <div class="steps">${stepsHtml}</div>
+      <div class="phase-header">
+        <div class="phase-name">Phase ${session.phase+1} · ${PHASE_NAMES[session.phase]}</div>
+        <div class="timer" id="timerDisplay">${fmt(session.secondsLeft)}</div>
+      </div>
+      <div class="phase-body">${body}</div>
+      ${showTemplateBox ? `<textarea id="templateInput" style="min-height:160px">${draftVal}</textarea>
+        <button class="btn btn-secondary" onclick="copyTemplate()" id="copyBtn">📋 Copy for Claude</button>` : ""}
+      ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway...">${state.takeaways[session.topicIdx]||""}</textarea>` : ""}
+      <div class="row">
+        <button class="btn btn-secondary" style="flex:1" onclick="skipPhase()">Skip / Next phase</button>
+        ${session.phase===4 ? `<button class="btn btn-primary" style="flex:1" onclick="finishSession()">Finish Session ✓</button>` : ""}
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn btn-secondary" onclick="exitSession()">Exit without finishing</button>
+    </div>
+  `;
+}
+function copyTemplate(){
+  const ta = document.getElementById("templateInput");
+  if(!ta) return;
+  const topic = TOPICS[session.topicIdx];
+  state.drafts[session.topicIdx] = ta.value;
+  saveState();
+  const text = `Topic: ${topic.t}\n\nHere's my filled-in template:\n\n${ta.value}\n\nCan you compare this against the technique and give me specific feedback?`;
+  const btn = document.getElementById("copyBtn");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{
+      if(btn){ btn.textContent = "✓ Copied — paste into chat with Claude"; setTimeout(()=>{ if(btn) btn.textContent = "📋 Copy for Claude"; }, 2500); }
+    }).catch(()=>{ if(btn) btn.textContent = "Couldn't copy — select and copy manually"; });
+  }
+}
+function fmt(sec){
+  const m = Math.floor(sec/60), s = sec%60;
+  return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+function tick(){
+  if(!session) return;
+  clearInterval(session.timerId);
+  session.timerId = setInterval(()=>{
+    if(!session) return;
+    session.secondsLeft--;
+    const el = document.getElementById("timerDisplay");
+    if(el){
+      el.textContent = fmt(Math.max(0,session.secondsLeft));
+      el.classList.toggle("low", session.secondsLeft<=10 && session.secondsLeft>0);
+    }
+    if(session.secondsLeft<=0){
+      clearInterval(session.timerId);
+      nextPhase();
+    }
+  },1000);
+}
+function nextPhase(){
+  if(session.phase===2){
+    const ta = document.getElementById("templateInput");
+    if(ta) state.drafts[session.topicIdx] = ta.value;
+    saveState();
+  }
+  if(session.phase===3){
+    const ta = document.getElementById("takeawayInput");
+    if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
+    saveState();
+  }
+  if(session.phase < 4){
+    session.phase++;
+    session.secondsLeft = PHASE_SECONDS[session.phase];
+    renderSession();
+    tick();
+  } else {
+    finishSession();
+  }
+}
+function skipPhase(){
+  clearInterval(session.timerId);
+  nextPhase();
+}
+function finishSession(){
+  const ta = document.getElementById("takeawayInput");
+  if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
+  clearInterval(session.timerId);
+  state.completedDays[todayStr()] = session.topicIdx;
+  saveState();
+  session = null;
+  renderHome();
+}
+function exitSession(){
+  clearInterval(session.timerId);
+  session = null;
+  renderHome();
+}
+
+/* ---------------- INIT ---------------- */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+renderHome();
+</script>
+</body>
+</html>
