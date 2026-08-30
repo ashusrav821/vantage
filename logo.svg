@@ -10,12 +10,8 @@
 
   <g transform="translate(48,40)">
     <rect width="160" height="160" rx="30" fill="#171a21" stroke="#2a2f3a" stroke-width="1"/>
-    <circle cx="80" cy="55" r="17" fill="#f4a83c"/>
-    <path d="M15 132 L62 65 L80 90 L98 62 L145 132 Z" fill="#e8944a"/>
-    <path d="M80 90 L98 62 L145 132 L100 132 Z" fill="#f4a83c"/>
-    <path d="M62 65 L75 84 L69 90 L54 76 Z" fill="#f7f4ee"/>
-    <path d="M98 62 L108 76 L98 84 L90 74 Z" fill="#f7f4ee"/>
-    <rect x="15" y="126" width="130" height="6" fill="#0f1115" opacity="0.35"/>
+    <path d="M32 118 L80 55 L128 118" fill="none" stroke="#f4a83c" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M52 118 L80 82 L108 118" fill="none" stroke="#e8944a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
   </g>
 
   <text x="248" y="128" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#eef0f3">Vantage</text>
