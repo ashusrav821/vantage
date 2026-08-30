@@ -73,10 +73,19 @@
   .nudge-banner{background:rgba(224,97,107,.12);border:1px solid rgba(224,97,107,.35);
     color:#f2a7ab;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
   .footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:22px;line-height:1.6;}
+  .mic-row{display:flex;justify-content:flex-end;margin-top:6px;}
+  .mic-btn{display:inline-flex;align-items:center;gap:6px;background:var(--card2);
+    border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600;
+    padding:7px 12px;border-radius:20px;cursor:pointer;}
+  .mic-btn.recording{background:rgba(224,97,107,.15);border-color:var(--warn);color:var(--warn);}
+  .data-row{display:flex;gap:10px;}
+  .data-row .btn{margin-top:0;flex:1;font-size:13.5px;padding:11px;}
+  .resume-note{font-size:12px;color:var(--accent);font-weight:600;margin-top:10px;text-align:center;}
 </style>
 </head>
 <body>
 <div class="app" id="app"></div>
+<input type="file" id="importFileInput" accept="application/json" class="hidden" onchange="handleImportFile(event)">
 
 <script>
 /* ---------------- DATA: 46 topics, 7 modules ---------------- */
@@ -150,6 +159,60 @@ function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 let state = loadState();
 if(!state.startDate){ state.startDate = todayStr(); saveState(); }
 
+/* ---------------- SESSION RESUME (persists in-progress phase/timer) ---------------- */
+const SESSION_KEY = "vantage_session_v1";
+function saveSessionSnapshot(){
+  if(!session) return;
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    date: todayStr(), topicIdx: session.topicIdx, phase: session.phase, secondsLeft: session.secondsLeft
+  }));
+}
+function clearSessionSnapshot(){ localStorage.removeItem(SESSION_KEY); }
+function loadSessionSnapshot(){
+  try{
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    const snap = JSON.parse(raw);
+    if(snap.date !== todayStr() || doneToday()){ localStorage.removeItem(SESSION_KEY); return null; }
+    return snap;
+  }catch(e){ return null; }
+}
+
+/* ---------------- EXPORT / IMPORT TO DEVICE ---------------- */
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "vantage-progress-" + todayStr() + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function triggerImport(){ document.getElementById("importFileInput").click(); }
+function handleImportFile(evt){
+  const file = evt.target.files && evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(typeof parsed !== "object" || !parsed.completedDays){ throw new Error("bad shape"); }
+      if(!parsed.drafts) parsed.drafts = {};
+      if(!parsed.takeaways) parsed.takeaways = {};
+      state = parsed;
+      saveState();
+      clearSessionSnapshot();
+      renderHome();
+    }catch(e){
+      alert("That file doesn't look like a Vantage backup.");
+    }
+    evt.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
 function todayStr(){
   const d = new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -213,6 +276,7 @@ function renderHome(){
   const pct = Math.round((done/total)*100);
   const rev = reviewCandidate();
   const finished = done >= total;
+  const resumable = loadSessionSnapshot();
 
   let html = `
   <header>
@@ -256,7 +320,10 @@ function renderHome(){
       <div class="situation" style="margin-top:8px;"><b>You'll learn:</b> ${topic.l}</div>
       ${doneToday()
         ? `<div class="done-check">✓ Session completed today. Nice work.</div>`
-        : `<button class="btn btn-primary" onclick="startSession()">Start 30-Min Session</button>`}
+        : resumable
+          ? `<button class="btn btn-primary" onclick="resumeSession()">Resume Session — Phase ${resumable.phase+1} of 5</button>
+             <div class="resume-note">You left off mid-session. Pick up right where you were.</div>`
+          : `<button class="btn btn-primary" onclick="startSession()">Start 30-Min Session</button>`}
     </div>`;
   }
 
@@ -279,6 +346,16 @@ function renderHome(){
     html += `</div></div>`;
   }
 
+  html += `
+    <div class="card">
+      <div class="module-badge">Backup</div>
+      <div class="situation" style="margin-bottom:2px;">Everything already autosaves on this device. Export a backup file if you're switching phones or reinstalling.</div>
+      <div class="data-row" style="margin-top:12px;">
+        <button class="btn btn-secondary" onclick="exportData()">⬇️ Save to device</button>
+        <button class="btn btn-secondary" onclick="triggerImport()">⬆️ Restore from file</button>
+      </div>
+    </div>`;
+
   html += `<div class="footer-note">Ping me (Claude) each day and say "run today's session" — I'll walk you through it live and give feedback on your Phase 3 practice.</div>`;
 
   document.getElementById("app").innerHTML = html;
@@ -292,12 +369,21 @@ let session = null; // {phase:0-4, secondsLeft, timerId, topicIdx}
 function startSession(){
   session = { phase:0, secondsLeft: PHASE_SECONDS[0], timerId:null, topicIdx: currentTopicIndex() };
   askNotificationPermission();
+  saveSessionSnapshot();
+  renderSession();
+  tick();
+}
+function resumeSession(){
+  const snap = loadSessionSnapshot();
+  if(!snap){ startSession(); return; }
+  session = { phase: snap.phase, secondsLeft: snap.secondsLeft, timerId:null, topicIdx: snap.topicIdx };
   renderSession();
   tick();
 }
 function renderSession(){
   const topic = TOPICS[session.topicIdx];
   const rev = reviewCandidate();
+  const voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const stepsHtml = PHASE_NAMES.map((n,i)=>{
     let cls = i===session.phase ? "active" : (i<session.phase ? "past" : "");
     return `<div class="step ${cls}"></div>`;
@@ -333,9 +419,11 @@ function renderSession(){
         <div class="timer" id="timerDisplay">${fmt(session.secondsLeft)}</div>
       </div>
       <div class="phase-body">${body}</div>
-      ${showTemplateBox ? `<textarea id="templateInput" style="min-height:160px">${draftVal}</textarea>
+      ${showTemplateBox ? `<textarea id="templateInput" style="min-height:160px" oninput="debouncedSaveDraft()">${draftVal}</textarea>
+        ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnTemplate" onclick="toggleVoiceInput('templateInput','micBtnTemplate')">🎤 Voice input</button></div>` : ""}
         <button class="btn btn-secondary" onclick="copyTemplate()" id="copyBtn">📋 Copy for Claude</button>` : ""}
-      ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway...">${state.takeaways[session.topicIdx]||""}</textarea>` : ""}
+      ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway..." oninput="debouncedSaveDraft()">${state.takeaways[session.topicIdx]||""}</textarea>
+        ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnTakeaway" onclick="toggleVoiceInput('takeawayInput','micBtnTakeaway')">🎤 Voice input</button></div>` : ""}` : ""}
       <div class="row">
         <button class="btn btn-secondary" style="flex:1" onclick="skipPhase()">Skip / Next phase</button>
         ${session.phase===4 ? `<button class="btn btn-primary" style="flex:1" onclick="finishSession()">Finish Session ✓</button>` : ""}
@@ -360,6 +448,65 @@ function copyTemplate(){
     }).catch(()=>{ if(btn) btn.textContent = "Couldn't copy — select and copy manually"; });
   }
 }
+
+/* ---------------- AUTOSAVE DRAFTS WHILE TYPING ---------------- */
+let draftSaveTimer = null;
+function debouncedSaveDraft(){
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(()=>{
+    if(!session) return;
+    const tpl = document.getElementById("templateInput");
+    const tk = document.getElementById("takeawayInput");
+    if(tpl) state.drafts[session.topicIdx] = tpl.value;
+    if(tk) state.takeaways[session.topicIdx] = tk.value;
+    saveState();
+  }, 700);
+}
+
+/* ---------------- VOICE INPUT (Web Speech API) ---------------- */
+let activeRecognition = null;
+let activeRecognitionTargetId = null;
+function toggleVoiceInput(targetId, btnId){
+  if(activeRecognition && activeRecognitionTargetId === targetId){
+    activeRecognition.stop();
+    return;
+  }
+  if(activeRecognition){ activeRecognition.stop(); }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert("Voice input isn't supported in this browser."); return; }
+  const ta = document.getElementById(targetId);
+  const btn = document.getElementById(btnId);
+  if(!ta || !btn) return;
+  const baseText = ta.value ? ta.value.replace(/\s+$/,"") : "";
+  const rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = true;
+  rec.continuous = true;
+  activeRecognition = rec;
+  activeRecognitionTargetId = targetId;
+  btn.classList.add("recording");
+  btn.textContent = "⏺ Listening… tap to stop";
+  let finalText = "";
+  rec.onresult = (e) => {
+    let interim = "";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal){ finalText += (finalText ? " " : "") + t.trim(); }
+      else{ interim += t; }
+    }
+    const combined = [baseText, finalText].filter(Boolean).join(" ");
+    ta.value = combined + (interim ? " " + interim : "");
+  };
+  rec.onerror = () => { stopVoiceInput(btn); };
+  rec.onend = () => { stopVoiceInput(btn); debouncedSaveDraft(); };
+  rec.start();
+}
+function stopVoiceInput(btn){
+  if(activeRecognition){ try{ activeRecognition.stop(); }catch(e){} }
+  activeRecognition = null;
+  activeRecognitionTargetId = null;
+  if(btn){ btn.classList.remove("recording"); btn.textContent = "🎤 Voice input"; }
+}
 function fmt(sec){
   const m = Math.floor(sec/60), s = sec%60;
   return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
@@ -375,6 +522,7 @@ function tick(){
       el.textContent = fmt(Math.max(0,session.secondsLeft));
       el.classList.toggle("low", session.secondsLeft<=10 && session.secondsLeft>0);
     }
+    if(session.secondsLeft % 5 === 0){ saveSessionSnapshot(); }
     if(session.secondsLeft<=0){
       clearInterval(session.timerId);
       nextPhase();
@@ -395,6 +543,7 @@ function nextPhase(){
   if(session.phase < 4){
     session.phase++;
     session.secondsLeft = PHASE_SECONDS[session.phase];
+    saveSessionSnapshot();
     renderSession();
     tick();
   } else {
@@ -411,10 +560,12 @@ function finishSession(){
   clearInterval(session.timerId);
   state.completedDays[todayStr()] = session.topicIdx;
   saveState();
+  clearSessionSnapshot();
   session = null;
   renderHome();
 }
 function exitSession(){
+  saveSessionSnapshot();
   clearInterval(session.timerId);
   session = null;
   renderHome();
@@ -424,6 +575,8 @@ function exitSession(){
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
 }
+document.addEventListener("visibilitychange", () => { if(document.hidden){ saveSessionSnapshot(); } });
+window.addEventListener("pagehide", saveSessionSnapshot);
 renderHome();
 </script>
 </body>
