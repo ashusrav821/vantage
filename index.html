@@ -22,7 +22,7 @@
   header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
   header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
   .brand{display:flex;align-items:center;gap:11px;}
-  .brand-icon{width:40px;height:40px;border-radius:11px;flex:0 0 40px;display:block;}
+  .brand-icon{width:40px;height:40px;border-radius:11px;flex:0 0 40px;display:block;cursor:pointer;}
   .brand-text{display:flex;flex-direction:column;}
   .tagline{font-size:10.5px;color:var(--accent);font-weight:600;margin-top:1px;letter-spacing:.1px;}
   .streak{display:flex;align-items:center;gap:6px;background:var(--card2);
@@ -77,10 +77,22 @@
   .mic-btn{display:inline-flex;align-items:center;gap:6px;background:var(--card2);
     border:1px solid var(--line);color:var(--muted);font-size:12.5px;font-weight:600;
     padding:7px 12px;border-radius:20px;cursor:pointer;}
-  .mic-btn.recording{background:rgba(224,97,107,.15);border-color:var(--warn);color:var(--warn);}
+  .mic-btn.recording{background:rgba(224,97,107,.15);border-color:var(--warn);color:var(--warn);
+    animation: micPulse 1.4s ease-out infinite;}
+  @keyframes micPulse{
+    0%{ box-shadow:0 0 0 0 rgba(224,97,107,.45); }
+    70%{ box-shadow:0 0 0 11px rgba(224,97,107,0); }
+    100%{ box-shadow:0 0 0 0 rgba(224,97,107,0); }
+  }
   .data-row{display:flex;gap:10px;}
   .data-row .btn{margin-top:0;flex:1;font-size:13.5px;padding:11px;}
   .resume-note{font-size:12px;color:var(--accent);font-weight:600;margin-top:10px;text-align:center;}
+  .sticky-cta{position:fixed;left:0;right:0;bottom:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(15,17,21,0) 0%, var(--bg) 35%);z-index:50;}
+  .sticky-inner{max-width:520px;margin:0 auto;}
+  .sticky-inner .btn{margin-top:0;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+  .session-breadcrumb{font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;
+    letter-spacing:.5px;margin-bottom:3px;}
 </style>
 </head>
 <body>
@@ -281,7 +293,7 @@ function renderHome(){
   let html = `
   <header>
     <div class="brand">
-      <img class="brand-icon" src="icon.svg" alt="Vantage">
+      <img class="brand-icon" src="icon.svg" alt="Vantage" onclick="goHome()">
       <div class="brand-text">
         <h1>Vantage</h1>
         <div class="tagline">See further. Lead better.</div>
@@ -321,9 +333,8 @@ function renderHome(){
       ${doneToday()
         ? `<div class="done-check">✓ Session completed today. Nice work.</div>`
         : resumable
-          ? `<button class="btn btn-primary" onclick="resumeSession()">Resume Session — Phase ${resumable.phase+1} of 5</button>
-             <div class="resume-note">You left off mid-session. Pick up right where you were.</div>`
-          : `<button class="btn btn-primary" onclick="startSession()">Start 30-Min Session</button>`}
+          ? `<div class="resume-note">↩️ You left off mid-session at Phase ${resumable.phase+1} of 5 — tap below to pick up right where you were.</div>`
+          : ``}
     </div>`;
   }
 
@@ -357,6 +368,22 @@ function renderHome(){
     </div>`;
 
   html += `<div class="footer-note">Come back to this chat each day and tell me you're starting today's session — I'll walk through it with you live and give you feedback on your Phase 3 practice.</div>`;
+
+  if(!finished){
+    if(doneToday()){
+      html += `<div style="height:8px"></div>`;
+    } else if(resumable){
+      html += `<div style="height:76px"></div>
+      <div class="sticky-cta"><div class="sticky-inner">
+        <button class="btn btn-primary" onclick="resumeSession()">Resume Session — Phase ${resumable.phase+1} of 5</button>
+      </div></div>`;
+    } else {
+      html += `<div style="height:76px"></div>
+      <div class="sticky-cta"><div class="sticky-inner">
+        <button class="btn btn-primary" onclick="startSession()">Start 30-Min Session</button>
+      </div></div>`;
+    }
+  }
 
   document.getElementById("app").innerHTML = html;
   maybeNudge();
@@ -410,7 +437,13 @@ function renderSession(){
 
   document.getElementById("app").innerHTML = `
     <header>
-      <h1>${topic.t}</h1>
+      <div class="brand">
+        <img class="brand-icon" src="icon.svg" alt="Vantage — go home" onclick="goHome()">
+        <div>
+          <div class="session-breadcrumb">Day ${session.topicIdx+1} of ${TOPICS.length} · ${topic.m}</div>
+          <h1>${topic.t}</h1>
+        </div>
+      </div>
     </header>
     <div class="card">
       <div class="steps">${stepsHtml}</div>
@@ -425,6 +458,7 @@ function renderSession(){
       ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway..." oninput="debouncedSaveDraft()">${state.takeaways[session.topicIdx]||""}</textarea>
         ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnTakeaway" onclick="toggleVoiceInput('takeawayInput','micBtnTakeaway')">🎤 Voice input</button></div>` : ""}` : ""}
       <div class="row">
+        ${session.phase>0 ? `<button class="btn btn-secondary" style="flex:0 0 54px;padding:14px 10px;" onclick="prevPhase()" aria-label="Back">←</button>` : ""}
         <button class="btn btn-secondary" style="flex:1" onclick="skipPhase()">Skip / Next phase</button>
         ${session.phase===4 ? `<button class="btn btn-primary" style="flex:1" onclick="finishSession()">Finish Session ✓</button>` : ""}
       </div>
@@ -554,6 +588,15 @@ function skipPhase(){
   clearInterval(session.timerId);
   nextPhase();
 }
+function prevPhase(){
+  if(!session || session.phase<=0) return;
+  clearInterval(session.timerId);
+  session.phase--;
+  session.secondsLeft = PHASE_SECONDS[session.phase];
+  saveSessionSnapshot();
+  renderSession();
+  tick();
+}
 function finishSession(){
   const ta = document.getElementById("takeawayInput");
   if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
@@ -569,6 +612,9 @@ function exitSession(){
   clearInterval(session.timerId);
   session = null;
   renderHome();
+}
+function goHome(){
+  if(session){ exitSession(); } else { renderHome(); window.scrollTo(0,0); }
 }
 
 /* ---------------- INIT ---------------- */
