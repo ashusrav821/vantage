@@ -96,6 +96,16 @@
   .search-input{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;
     color:var(--text);padding:10px 12px;font-size:13.5px;font-family:inherit;margin-top:12px;}
   .no-results{font-size:13px;color:var(--muted);text-align:center;padding:10px 0 2px;}
+  select.topic-select{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:12px;font-size:14.5px;font-family:inherit;margin-bottom:10px;}
+  .capture-row{padding:10px 0;border-bottom:1px solid var(--line);}
+  .capture-row:last-child{border-bottom:none;}
+  .capture-meta{font-size:11px;color:var(--muted);margin-bottom:3px;}
+  .capture-text{font-size:13.5px;color:#dfe2e8;line-height:1.5;margin-bottom:8px;white-space:pre-line;}
+  .capture-actions{display:flex;gap:8px;}
+  .capture-actions button{background:var(--card2);border:1px solid var(--line);color:var(--muted);
+    font-size:12px;font-weight:600;padding:6px 11px;border-radius:16px;cursor:pointer;}
+  .capture-actions button.danger{color:var(--warn);}
 </style>
 </head>
 <body>
@@ -166,10 +176,11 @@ function loadState(){
       const parsed = JSON.parse(raw);
       if(!parsed.drafts) parsed.drafts = {};
       if(!parsed.history) parsed.history = {};
+      if(!parsed.captures) parsed.captures = [];
       return parsed;
     }
   }catch(e){}
-  return { startDate: null, completedDays: {}, takeaways: {}, drafts: {}, history: {}, currentDay: 0 };
+  return { startDate: null, completedDays: {}, takeaways: {}, drafts: {}, history: {}, captures: [], currentDay: 0 };
 }
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 let state = loadState();
@@ -218,6 +229,7 @@ function handleImportFile(evt){
       if(!parsed.drafts) parsed.drafts = {};
       if(!parsed.takeaways) parsed.takeaways = {};
       if(!parsed.history) parsed.history = {};
+      if(!parsed.captures) parsed.captures = [];
       state = parsed;
       saveState();
       clearSessionSnapshot();
@@ -311,6 +323,13 @@ function renderHome(){
     html += `<div class="nudge-banner">You haven't done today's session yet. 30 minutes, ${topic.t}.</div>`;
   }
 
+  html += `
+  <div class="card">
+    <div class="module-badge">Quick Capture</div>
+    <div class="situation" style="margin-bottom:2px;">Something just happened at work? Log it in 30 seconds — text or voice — and bring it to me anytime for feedback.</div>
+    <button class="btn btn-secondary" style="margin-top:12px;" onclick="renderCapture()">🎙️ Record an Example</button>
+  </div>`;
+
   if(rev && !doneToday()){
     html += `
     <div class="card review-card">
@@ -356,6 +375,15 @@ function renderHome(){
       </div>
       <div class="no-results hidden" id="noResults">No topics match that search.</div>
     </div>`;
+
+  if(state.captures && state.captures.length){
+    const caps = state.captures.slice().sort((a,b)=> a.date < b.date ? 1 : -1);
+    const shown = caps.slice(0,5);
+    html += `<div class="card"><div class="module-badge">Captured Examples</div>`;
+    html += shown.map(c => renderCaptureRow(c)).join("");
+    if(caps.length>5){ html += `<div class="toggle-list" style="margin-top:6px;" onclick="toggleFullCaptures()">View all ${caps.length} examples ▾</div><div class="list-topics" id="fullCaptures">${caps.slice(5).map(c=>renderCaptureRow(c)).join("")}</div>`; }
+    html += `</div>`;
+  }
 
   const histEntries = allHistoryEntries();
   if(histEntries.length){
@@ -428,6 +456,79 @@ function allHistoryEntries(){
   }
   entries.sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   return entries;
+}
+
+/* ---------------- QUICK CAPTURE (free-form examples for Claude to review) ---------------- */
+function toggleFullCaptures(){ document.getElementById("fullCaptures").classList.toggle("open"); }
+function renderCaptureRow(c){
+  const topicLabel = (c.topicIdx !== null && c.topicIdx !== undefined && TOPICS[c.topicIdx]) ? TOPICS[c.topicIdx].t : "General";
+  return `
+    <div class="capture-row">
+      <div class="capture-meta">${c.date} · ${topicLabel}</div>
+      <div class="capture-text">${escapeHtml(c.text)}</div>
+      <div class="capture-actions">
+        <button onclick="copyCaptureForClaude('${c.id}')" id="capCopy_${c.id}">📋 Copy for Claude</button>
+        <button class="danger" onclick="deleteCapture('${c.id}')">🗑 Delete</button>
+      </div>
+    </div>`;
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function renderCapture(){
+  const voiceSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const options = `<option value="">No specific topic — general example</option>` +
+    TOPICS.map((t,i)=>`<option value="${i}">${t.t}</option>`).join("");
+  document.getElementById("app").innerHTML = `
+    <header>
+      <div class="brand">
+        <img class="brand-icon" src="icon.svg" alt="Vantage — go home" onclick="goHome()">
+        <div class="brand-text"><h1>Record an Example</h1></div>
+      </div>
+    </header>
+    <div class="card">
+      <div class="situation" style="margin-bottom:10px;">Something just happened — a conversation, an email, a meeting moment? Capture it now while it's fresh. Text or voice, doesn't need to be polished.</div>
+      <select class="topic-select" id="captureTopic">${options}</select>
+      <textarea id="captureInput" placeholder="What happened? What did you say, what did they say, how did it land..." style="min-height:150px"></textarea>
+      ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnCapture" onclick="toggleVoiceInput('captureInput','micBtnCapture')">🎤 Voice input</button></div>` : ""}
+      <button class="btn btn-primary" onclick="saveCapture()">Save Example</button>
+      <button class="btn btn-secondary" onclick="goHome()">Cancel</button>
+    </div>
+  `;
+}
+function saveCapture(){
+  const ta = document.getElementById("captureInput");
+  const sel = document.getElementById("captureTopic");
+  const text = ta ? ta.value.trim() : "";
+  if(!text){ alert("Write or record something first."); return; }
+  const topicIdx = sel && sel.value !== "" ? parseInt(sel.value,10) : null;
+  if(!state.captures) state.captures = [];
+  state.captures.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    date: todayStr(),
+    topicIdx: topicIdx,
+    text: text
+  });
+  saveState();
+  renderHome();
+}
+function copyCaptureForClaude(id){
+  const c = (state.captures||[]).find(x => x.id === id);
+  if(!c) return;
+  const topicLabel = (c.topicIdx !== null && c.topicIdx !== undefined && TOPICS[c.topicIdx]) ? TOPICS[c.topicIdx].t : null;
+  const text = `Here's something that happened at work${topicLabel ? " (related to: "+topicLabel+")" : ""}:\n\n${c.text}\n\nCan you analyse this and give me specific recommendations based on the leadership techniques I'm learning?`;
+  const btn = document.getElementById("capCopy_"+id);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{
+      if(btn){ const orig = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(()=>{ if(btn) btn.textContent = orig; }, 2000); }
+    }).catch(()=>{ if(btn) btn.textContent = "Couldn't copy"; });
+  }
+}
+function deleteCapture(id){
+  if(!confirm("Delete this example?")) return;
+  state.captures = (state.captures||[]).filter(x => x.id !== id);
+  saveState();
+  renderHome();
 }
 
 /* ---------------- VIEW: SESSION ---------------- */
