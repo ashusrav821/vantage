@@ -259,11 +259,11 @@ function streak(){
   let s = 0, d = new Date();
   while(true){
     const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    if(state.completedDays[key]){ s++; d.setDate(d.getDate()-1); } else break;
+    if(Object.prototype.hasOwnProperty.call(state.completedDays, key)){ s++; d.setDate(d.getDate()-1); } else break;
   }
   return s;
 }
-function doneToday(){ return !!state.completedDays[todayStr()]; }
+function doneToday(){ return Object.prototype.hasOwnProperty.call(state.completedDays, todayStr()); }
 
 /* review candidates: topics completed roughly 3, 7, 14 days ago */
 function reviewCandidate(){
@@ -388,15 +388,15 @@ function renderHome(){
   const histEntries = allHistoryEntries();
   if(histEntries.length){
     html += `<div class="card"><div class="module-badge">Practice Log</div><div class="takeaways">`;
-    html += histEntries.slice(0,8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${h.text}</div>`).join("");
-    if(histEntries.length>8){ html += `<div class="toggle-list" style="margin-top:8px;" onclick="toggleFullLog()">View all ${histEntries.length} entries ▾</div><div class="list-topics" id="fullLog">${histEntries.slice(8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${h.text}</div>`).join("")}</div>`; }
+    html += histEntries.slice(0,8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${escapeHtml(h.text)}</div>`).join("");
+    if(histEntries.length>8){ html += `<div class="toggle-list" style="margin-top:8px;" onclick="toggleFullLog()">View all ${histEntries.length} entries ▾</div><div class="list-topics" id="fullLog">${histEntries.slice(8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${escapeHtml(h.text)}</div>`).join("")}</div>`; }
     html += `</div></div>`;
   }
 
   const tkEntries = Object.entries(state.takeaways);
   if(tkEntries.length){
     html += `<div class="card"><div class="module-badge">Your Takeaways</div><div class="takeaways">`;
-    html += tkEntries.slice().reverse().slice(0,8).map(([i,txt])=>`<div class="tk"><b>${TOPICS[i].t}:</b> ${txt}</div>`).join("");
+    html += tkEntries.slice().reverse().slice(0,8).map(([i,txt])=>`<div class="tk"><b>${TOPICS[i].t}:</b> ${escapeHtml(txt)}</div>`).join("");
     html += `</div></div>`;
   }
 
@@ -593,14 +593,14 @@ function renderSession(){
         <div class="timer" id="timerDisplay">${fmt(session.secondsLeft)}</div>
       </div>
       <div class="phase-body">${body}</div>
-      ${showTemplateBox ? `<textarea id="templateInput" style="min-height:160px" oninput="debouncedSaveDraft()">${draftVal}</textarea>
+      ${showTemplateBox ? `<textarea id="templateInput" style="min-height:160px" oninput="debouncedSaveDraft()">${escapeHtml(draftVal)}</textarea>
         ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnTemplate" onclick="toggleVoiceInput('templateInput','micBtnTemplate')">🎤 Voice input</button></div>` : ""}
         <button class="btn btn-secondary" onclick="copyTemplate()" id="copyBtn">📋 Copy for Claude</button>` : ""}
-      ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway..." oninput="debouncedSaveDraft()">${state.takeaways[session.topicIdx]||""}</textarea>
+      ${showTakeawayBox ? `<textarea id="takeawayInput" placeholder="My takeaway..." oninput="debouncedSaveDraft()">${escapeHtml(state.takeaways[session.topicIdx]||"")}</textarea>
         ${voiceSupported ? `<div class="mic-row"><button class="mic-btn" id="micBtnTakeaway" onclick="toggleVoiceInput('takeawayInput','micBtnTakeaway')">🎤 Voice input</button></div>` : ""}` : ""}
       <div class="row">
         ${session.phase>0 ? `<button class="btn btn-secondary" style="flex:0 0 54px;padding:14px 10px;" onclick="prevPhase()" aria-label="Back">←</button>` : ""}
-        <button class="btn btn-secondary" style="flex:1" onclick="skipPhase()">Skip / Next phase</button>
+        ${session.phase<4 ? `<button class="btn btn-secondary" style="flex:1" onclick="skipPhase()">Skip / Next phase</button>` : ""}
         ${session.phase===4 ? `<button class="btn btn-primary" style="flex:1" onclick="finishSession()">Finish Session ✓</button>` : ""}
       </div>
     </div>
@@ -704,17 +704,28 @@ function tick(){
     }
   },1000);
 }
-function nextPhase(){
+function stopAnyRecording(){
+  if(activeRecognition){
+    try{ activeRecognition.stop(); }catch(e){}
+    activeRecognition = null;
+    activeRecognitionTargetId = null;
+  }
+}
+function flushSessionInputs(){
+  if(!session) return;
   if(session.phase===2){
     const ta = document.getElementById("templateInput");
     if(ta) state.drafts[session.topicIdx] = ta.value;
-    saveState();
   }
   if(session.phase===3){
     const ta = document.getElementById("takeawayInput");
     if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
-    saveState();
   }
+  saveState();
+}
+function nextPhase(){
+  stopAnyRecording();
+  flushSessionInputs();
   if(session.phase < 4){
     session.phase++;
     session.secondsLeft = PHASE_SECONDS[session.phase];
@@ -731,6 +742,8 @@ function skipPhase(){
 }
 function prevPhase(){
   if(!session || session.phase<=0) return;
+  stopAnyRecording();
+  flushSessionInputs();
   clearInterval(session.timerId);
   session.phase--;
   session.secondsLeft = PHASE_SECONDS[session.phase];
@@ -739,12 +752,13 @@ function prevPhase(){
   tick();
 }
 function finishSession(){
-  const ta = document.getElementById("takeawayInput");
-  if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
+  stopAnyRecording();
+  const topic = TOPICS[session.topicIdx];
+  flushSessionInputs();
   clearInterval(session.timerId);
   state.completedDays[todayStr()] = session.topicIdx;
   const tplVal = state.drafts[session.topicIdx];
-  if(tplVal && tplVal.trim()){
+  if(tplVal && tplVal.trim() && tplVal.trim() !== topic.tpl.trim()){
     if(!state.history) state.history = {};
     if(!state.history[session.topicIdx]) state.history[session.topicIdx] = [];
     const already = state.history[session.topicIdx].some(h => h.date === todayStr());
@@ -756,6 +770,8 @@ function finishSession(){
   renderHome();
 }
 function exitSession(){
+  stopAnyRecording();
+  flushSessionInputs();
   saveSessionSnapshot();
   clearInterval(session.timerId);
   session = null;

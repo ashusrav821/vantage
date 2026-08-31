@@ -1,4 +1,4 @@
-const CACHE = 'vantage-v1';
+const CACHE = 'vantage-v2';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
