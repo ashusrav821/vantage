@@ -278,6 +278,35 @@ function reviewCandidate(){
   return null;
 }
 
+/* ---------------- INSTALL AS APP ---------------- */
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  if(!session){ renderHome(); } // refresh so the Install button appears
+});
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  if(!session){ renderHome(); }
+});
+function isStandaloneDisplay(){
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+}
+function isIOSDevice(){
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent || "");
+}
+async function installApp(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  renderHome();
+}
+function toggleIOSInstallHelp(){
+  const el = document.getElementById("iosInstallHelp");
+  if(el) el.classList.toggle("open");
+}
+
 /* ---------------- NOTIFICATIONS ---------------- */
 function askNotificationPermission(){
   if("Notification" in window && Notification.permission === "default"){
@@ -318,6 +347,29 @@ function renderHome(){
     </div>
     <div class="streak">🔥 ${streak()} day streak</div>
   </header>`;
+
+  if(!isStandaloneDisplay()){
+    if(deferredInstallPrompt){
+      html += `
+      <div class="card">
+        <div class="module-badge">Install</div>
+        <div class="situation" style="margin-bottom:2px;">Add Vantage to your home screen for one-tap access and full-screen use, like a native app.</div>
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="installApp()">📲 Install App</button>
+      </div>`;
+    } else if(isIOSDevice()){
+      html += `
+      <div class="card">
+        <div class="module-badge">Install</div>
+        <div class="situation" style="margin-bottom:2px;">Add Vantage to your home screen for one-tap access, like a native app.</div>
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="toggleIOSInstallHelp()">📲 How to Install (iOS)</button>
+        <div class="list-topics" id="iosInstallHelp" style="margin-top:4px;">
+          <div class="topic-row" style="border-bottom:none;">
+            <div>1. Tap the <b>Share</b> icon in Safari's toolbar<br>2. Scroll down and tap <b>Add to Home Screen</b><br>3. Tap <b>Add</b> — Vantage now opens full-screen from your home screen.</div>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
 
   if(!doneToday() && done > 0){
     html += `<div class="nudge-banner">You haven't done today's session yet. 30 minutes, ${topic.t}.</div>`;
@@ -783,7 +835,19 @@ function goHome(){
 
 /* ---------------- INIT ---------------- */
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    // Re-check for a newer deployed sw.js whenever the app is reopened/foregrounded.
+    document.addEventListener("visibilitychange", () => { if(!document.hidden){ reg.update().catch(()=>{}); } });
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
+  // As soon as a new service worker takes control, reload once to pick up
+  // the fresh index.html instead of leaving the old version running.
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if(swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    window.location.reload();
+  });
 }
 document.addEventListener("visibilitychange", () => { if(document.hidden){ saveSessionSnapshot(); } });
 window.addEventListener("pagehide", saveSessionSnapshot);
