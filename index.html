@@ -93,6 +93,9 @@
   .sticky-inner .btn{margin-top:0;box-shadow:0 6px 20px rgba(0,0,0,.4);}
   .session-breadcrumb{font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;
     letter-spacing:.5px;margin-bottom:3px;}
+  .search-input{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:10px 12px;font-size:13.5px;font-family:inherit;margin-top:12px;}
+  .no-results{font-size:13px;color:var(--muted);text-align:center;padding:10px 0 2px;}
 </style>
 </head>
 <body>
@@ -162,10 +165,11 @@ function loadState(){
     if(raw){
       const parsed = JSON.parse(raw);
       if(!parsed.drafts) parsed.drafts = {};
+      if(!parsed.history) parsed.history = {};
       return parsed;
     }
   }catch(e){}
-  return { startDate: null, completedDays: {}, takeaways: {}, drafts: {}, currentDay: 0 };
+  return { startDate: null, completedDays: {}, takeaways: {}, drafts: {}, history: {}, currentDay: 0 };
 }
 function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 let state = loadState();
@@ -213,6 +217,7 @@ function handleImportFile(evt){
       if(typeof parsed !== "object" || !parsed.completedDays){ throw new Error("bad shape"); }
       if(!parsed.drafts) parsed.drafts = {};
       if(!parsed.takeaways) parsed.takeaways = {};
+      if(!parsed.history) parsed.history = {};
       state = parsed;
       saveState();
       clearSessionSnapshot();
@@ -344,11 +349,21 @@ function renderHome(){
         <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
         <div class="progress-text"><span>${done} / ${total} sessions</span><span>${pct}%</span></div>
       </div>
+      <input type="text" id="topicSearch" class="search-input" placeholder="🔍 Search topics..." oninput="filterTopicList()">
       <div class="toggle-list" onclick="toggleList()">View full topic list ▾</div>
       <div class="list-topics" id="topicList">
-        ${TOPICS.map((tp,i)=>`<div class="topic-row"><div class="tick ${i<done?'on':''}"></div><div>${tp.t}</div></div>`).join("")}
+        ${TOPICS.map((tp,i)=>`<div class="topic-row" data-search="${(tp.t+' '+tp.m).toLowerCase().replace(/"/g,'&quot;')}"><div class="tick ${i<done?'on':''}"></div><div>${tp.t}</div></div>`).join("")}
       </div>
+      <div class="no-results hidden" id="noResults">No topics match that search.</div>
     </div>`;
+
+  const histEntries = allHistoryEntries();
+  if(histEntries.length){
+    html += `<div class="card"><div class="module-badge">Practice Log</div><div class="takeaways">`;
+    html += histEntries.slice(0,8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${h.text}</div>`).join("");
+    if(histEntries.length>8){ html += `<div class="toggle-list" style="margin-top:8px;" onclick="toggleFullLog()">View all ${histEntries.length} entries ▾</div><div class="list-topics" id="fullLog">${histEntries.slice(8).map(h=>`<div class="tk"><b>${TOPICS[h.idx].t}</b> <span style="color:var(--muted);font-weight:400;">(${h.date})</span><br>${h.text}</div>`).join("")}</div>`; }
+    html += `</div></div>`;
+  }
 
   const tkEntries = Object.entries(state.takeaways);
   if(tkEntries.length){
@@ -389,6 +404,31 @@ function renderHome(){
   maybeNudge();
 }
 function toggleList(){ document.getElementById("topicList").classList.toggle("open"); }
+function toggleFullLog(){ document.getElementById("fullLog").classList.toggle("open"); }
+function filterTopicList(){
+  const q = document.getElementById("topicSearch").value.trim().toLowerCase();
+  const rows = document.querySelectorAll("#topicList .topic-row");
+  let visible = 0;
+  rows.forEach(r=>{
+    const match = r.dataset.search.includes(q);
+    r.style.display = match ? "" : "none";
+    if(match) visible++;
+  });
+  const listEl = document.getElementById("topicList");
+  const noResults = document.getElementById("noResults");
+  if(q){ listEl.classList.add("open"); }
+  if(noResults){ noResults.classList.toggle("hidden", visible>0 || !q); }
+}
+function allHistoryEntries(){
+  if(!state.history) return [];
+  const entries = [];
+  for(const idxStr of Object.keys(state.history)){
+    const idx = parseInt(idxStr,10);
+    for(const h of state.history[idxStr]){ entries.push({idx, date:h.date, text:h.text}); }
+  }
+  entries.sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+  return entries;
+}
 
 /* ---------------- VIEW: SESSION ---------------- */
 let session = null; // {phase:0-4, secondsLeft, timerId, topicIdx}
@@ -602,6 +642,13 @@ function finishSession(){
   if(ta) state.takeaways[session.topicIdx] = ta.value.trim();
   clearInterval(session.timerId);
   state.completedDays[todayStr()] = session.topicIdx;
+  const tplVal = state.drafts[session.topicIdx];
+  if(tplVal && tplVal.trim()){
+    if(!state.history) state.history = {};
+    if(!state.history[session.topicIdx]) state.history[session.topicIdx] = [];
+    const already = state.history[session.topicIdx].some(h => h.date === todayStr());
+    if(!already){ state.history[session.topicIdx].push({date: todayStr(), text: tplVal.trim()}); }
+  }
   saveState();
   clearSessionSnapshot();
   session = null;
